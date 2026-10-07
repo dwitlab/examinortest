@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Exam{% endblock %}</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--text:#1f2328;--muted:#6b7280;--line:#e2e2de;--accent:#2f5bea;--ok:#1a7f4b;--okbg:#e6f5ec;--warn:#92400e;--warnbg:#fef3c7;--err:#b42318;--errbg:#fde8e6;--code:#fafaf8}
+@media (prefers-color-scheme:dark){:root{--bg:#151618;--card:#1e2023;--text:#e8e8e6;--muted:#9aa0a6;--line:#33363a;--accent:#7b9cff;--ok:#5fd08f;--okbg:#10301f;--warn:#fcd34d;--warnbg:#3a2f0b;--err:#f97066;--errbg:#3d1512;--code:#17181a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:24px 18px 60px}
+h1{font-size:24px;margin:0 0 4px} h2{font-size:17px;margin:0 0 12px} .sub{color:var(--muted);margin:0 0 20px}
+a{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+nav{display:flex;gap:14px;align-items:center;margin-bottom:18px;font-size:14px} nav .sp{flex:1}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:4px}
+input,select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);max-width:100%}
+input[type=checkbox],input[type=radio]{padding:0;width:auto}
+button,.btn{font:inherit;padding:8px 16px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;text-decoration:none;display:inline-block}
+button.primary,.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.danger{color:var(--err)} button:disabled{opacity:.5}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.flash{padding:10px 14px;border-radius:8px;margin-bottom:10px;font-size:14px}
+.flash.ok{background:var(--okbg);color:var(--ok)} .flash.warn{background:var(--warnbg);color:var(--warn)} .flash.error{background:var(--errbg);color:var(--err)}
+table{border-collapse:collapse;width:100%} th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.qhtml img{max-width:100%;height:auto} .qhtml table{margin:8px 0} .qhtml td,.qhtml th{font-size:inherit;border:1px solid var(--line)}
+.chip{display:inline-block;background:var(--code);border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:12px;margin-right:6px}
+.muted{color:var(--muted)} .big{font-size:40px;font-weight:700;line-height:1.1}
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<main>
+{% block nav %}{% endblock %}
+{% with msgs = get_flashed_messages(with_categories=true) %}{% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}{% endwith %}
+{% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

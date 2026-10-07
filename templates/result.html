@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Result - {{ exam.title }}{% endblock %}
+{% block head %}{% include "_mathjax.html" %}{% endblock %}
+{% block nav %}<nav><a href="{{ url_for('exam.landing') }}">Home</a></nav>{% endblock %}
+{% block content %}
+<h1>{{ exam.title }}</h1><p class="sub">{{ att.name }} &middot; Roll {{ att.roll }}</p>
+<div class="card row" style="align-items:center;gap:36px">
+  <div><div class="muted">Your score</div><div class="big">{{ att.score|round(2) }} <span class="muted" style="font-size:20px">/ {{ att.total|round(1) }}</span></div></div>
+  <div><span class="chip" style="color:var(--ok)">{{ correct }} correct</span><span class="chip" style="color:var(--err)">{{ wrong }} wrong</span><span class="chip">{{ skipped }} skipped</span></div>
+</div>
+{% if exam.show_answers %}
+<h2>Review</h2>
+{% for q, d in rows %}
+<div class="card">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b>Question {{ loop.index }}</b>{% if q.context and q.orig_no %}<span class="chip">Passage ref: Q{{ q.orig_no }}</span>{% endif %}
+    {% set s = d.status if d else 'skipped' %}
+    <span class="chip" style="color:{{ 'var(--ok)' if s in ('correct','partial') else ('var(--err)' if s == 'wrong' else 'var(--muted)') }}">{{ s|capitalize }}{% if d and d.delta %} ({{ '%+g'|format(d.delta) }}){% endif %}</span></div>
+  {% if q.context %}<div class="card qhtml" style="background:var(--code)">{{ q.context|safe }}</div>{% endif %}
+  <div class="qhtml">{{ q.html|safe }}</div>
+  <p style="margin:10px 0 0"><b>Your answer:</b>
+    {% if d and d.given %}{% if q.qtype == 'integer' %}{{ d.given }}{% else %}{% for g in d.given.split(',') %}{{ q.label(g) }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}{% else %}<span class="muted">not answered</span>{% endif %}
+    &nbsp;&middot;&nbsp; <b>Correct answer:</b> {{ q.answer_display() }}</p>
+  {% if q.explanation %}<details style="margin-top:8px"><summary>Explanation</summary><div class="qhtml">{{ q.explanation|safe }}</div></details>{% endif %}
+</div>{% endfor %}
+{% endif %}
+{% endblock %}

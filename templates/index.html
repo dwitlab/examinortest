@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOCX to LaTeX</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--text:#1f2328;--muted:#6b7280;--line:#e2e2de;--accent:#2f5bea;--warn:#92400e;--warnbg:#fef3c7;--err:#b42318;--code:#fbfbfa}
+@media (prefers-color-scheme:dark){:root{--bg:#151618;--card:#1e2023;--text:#e8e8e6;--muted:#9aa0a6;--line:#33363a;--accent:#7b9cff;--warn:#fcd34d;--warnbg:#3a2f0b;--err:#f97066;--code:#17181a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:980px;margin:0 auto;padding:32px 20px 60px}
+h1{font-size:26px;margin:0 0 4px} .sub{color:var(--muted);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}
+#drop{border:2px dashed var(--line);border-radius:12px;padding:36px 16px;text-align:center;cursor:pointer;transition:.15s}
+#drop.over,#drop:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+#drop b{display:block;font-size:16px} #drop span{color:var(--muted);font-size:13px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:4px}
+select,input[type=text]{font:inherit;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
+.chk{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--text)}
+button{font:inherit;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+.chip{background:var(--code);border:1px solid var(--line);border-radius:99px;padding:3px 12px;font-size:13px}
+.warn{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px}
+.warn ul{margin:4px 0 0 18px;padding:0}
+#err{color:var(--err);margin-top:12px;display:none}
+pre{margin:14px 0 0;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;max-height:520px;overflow:auto;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre}
+#result{display:none} .spacer{flex:1}
+h2{font-size:16px;margin:0 0 12px}
+.hist{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.hist:first-of-type{border-top:0}
+.hist .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist small{color:var(--muted);display:block}
+.hist button{padding:5px 10px;font-size:13px}
+.hist a button{padding:5px 10px;font-size:13px}
+button.danger{color:var(--err)}
+#histEmpty{color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+  <h1>DOCX → LaTeX</h1>
+  <p class="sub">Upload a Word document. Equations, tables, images and formatting are converted; images are bundled into a ready-to-compile ZIP.</p>
+  {% if not pandoc_ok %}<div class="warn">Pandoc was not found on this server. Install it (<code>apt install pandoc</code> / <code>brew install pandoc</code>) and restart.</div>{% endif %}
+
+  <div class="card">
+    <div id="drop" tabindex="0">
+      <b id="dropTitle">Drop a .docx here or click to browse</b>
+      <span>Max {{ max_mb }} MB</span>
+      <input id="file" type="file" accept=".docx" hidden>
+    </div>
+    <div class="opts">
+      <label class="chk"><input id="standalone" type="checkbox" checked> Full document (preamble)</label>
+      <label class="chk"><input id="bigfrac" type="checkbox" checked> Larger inline fractions</label>
+      <label class="chk"><input id="headings" type="checkbox" checked> ALL-CAPS lines &rarr; sections</label>
+      <label>Document class<select id="docclass"><option>article</option><option>report</option><option>book</option></select></label>
+      <label>Font size<select id="fontsize"><option>10pt</option><option selected>11pt</option><option>12pt</option></select></label>
+      <label>Margins<input id="margin" type="text" value="1in"></label>
+      <label>Line wrapping<select id="wrap"><option value="auto">Auto (72 cols)</option><option value="none">None</option><option value="preserve">Preserve</option></select></label>
+      <label>Tracked changes<select id="track"><option value="accept">Accept all</option><option value="reject">Reject all</option><option value="all">Keep as markup</option></select></label>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button id="go" class="primary" disabled>Convert</button>
+      <span id="status" style="color:var(--muted)"></span>
+    </div>
+    <div id="err"></div>
+  </div>
+
+  <div id="result" class="card">
+    <div class="chips" id="chips"></div>
+    <div id="warns"></div>
+    <div class="row">
+      <a id="dlZip"><button class="primary">Download ZIP (tex + images)</button></a>
+      <a id="dlTex"><button>Download .tex</button></a>
+      <button id="copy">Copy LaTeX</button>
+    </div>
+    <pre id="out"></pre>
+  </div>
+
+  <div class="card">
+    <h2>History <span style="color:var(--muted);font-weight:400;font-size:13px">(saved in this browser's private history)</span></h2>
+    <div id="hist"></div>
+    <div id="histEmpty">No conversions yet.</div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let file = null, latex = "";
+
+function setFile(f){
+  if(!f) return;
+  if(!f.name.toLowerCase().endsWith(".docx")){ showErr("Please choose a .docx file."); return; }
+  file = f; $("dropTitle").textContent = f.name; $("go").disabled = false; $("err").style.display="none";
+}
+function showErr(m){ const e=$("err"); e.textContent=m; e.style.display="block"; }
+
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+drop.onkeydown = e => { if(e.key==="Enter"||e.key===" ") $("file").click(); };
+$("file").onchange = e => setFile(e.target.files[0]);
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => setFile(e.dataTransfer.files[0]));
+
+$("go").onclick = async () => {
+  const fd = new FormData();
+  fd.append("file", file);
+  for (const k of ["standalone","bigfrac","headings"]) fd.append(k, $(k).checked);
+  for (const k of ["docclass","fontsize","margin","wrap","track"]) fd.append(k, $(k).value);
+  $("go").disabled = true; $("status").textContent = "Converting..."; $("err").style.display="none";
+  try{
+    const r = await fetch("/api/convert", {method:"POST", body:fd});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error || "Conversion failed.");
+    render(d);
+    loadHistory();
+    $("status").textContent = "Done.";
+  }catch(e){ showErr(e.message); $("status").textContent = ""; }
+  $("go").disabled = false;
+};
+
+function render(d){
+  latex = d.latex;
+  const s = d.stats;
+  $("chips").innerHTML = [`${s.equations} equations`,`${s.images} images`,`${s.tables} tables`,`${s.characters.toLocaleString()} chars`]
+    .map(t => `<span class="chip">${t}</span>`).join("");
+  $("warns").innerHTML = d.warnings.length
+    ? `<div class="warn"><b>Heads up</b><ul>${d.warnings.map(w=>`<li>${w.replace(/</g,"&lt;")}</li>`).join("")}</ul></div>` : "";
+  $("dlZip").href = `/download/${d.id}/zip`;
+  $("dlTex").href = `/download/${d.id}/tex`;
+  $("out").textContent = latex;
+  $("result").style.display = "block";
+  $("result").scrollIntoView({behavior:"smooth"});
+}
+$("copy").onclick = async () => { await navigator.clipboard.writeText(latex); $("copy").textContent="Copied"; setTimeout(()=>$("copy").textContent="Copy LaTeX",1500); };
+
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function loadHistory(){
+  const rows = await (await fetch("/api/history")).json();
+  $("histEmpty").style.display = rows.length ? "none" : "block";
+  $("hist").innerHTML = rows.map(r => `
+    <div class="hist" data-id="${r.id}">
+      <div class="nm">${esc(r.filename)}<small>${new Date(r.created).toLocaleString()} &middot; ${r.stats.equations} eq, ${r.stats.images} img, ${r.stats.tables} tbl</small></div>
+      <button data-act="open">Open</button>
+      <a href="/download/${r.id}/zip"><button>ZIP</button></a>
+      <button data-act="del" class="danger">Delete</button>
+    </div>`).join("");
+}
+$("hist").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if(!b) return;
+  const id = b.closest(".hist").dataset.id;
+  if(b.dataset.act === "open"){
+    const r = await fetch(`/api/conversions/${id}`);
+    if(r.ok) render(await r.json());
+  } else if(confirm("Delete this conversion and its images?")){
+    await fetch(`/api/conversions/${id}`, {method:"DELETE"});
+    loadHistory();
+  }
+});
+loadHistory();
+</script>
+</body>
+</html>

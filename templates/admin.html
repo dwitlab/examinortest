@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Examiner{% endblock %}
+{% block nav %}<nav><a href="{{ url_for('exam.landing') }}">Home</a><span class="sp"></span><a href="{{ url_for('exam.admin_logout') }}">Log out</a></nav>{% endblock %}
+{% block content %}
+<h1>Examiner dashboard</h1><p class="sub">Upload a question paper (.docx). Questions, types and answer keys are detected automatically.</p>
+{% if not pandoc_ok %}<div class="flash error">Pandoc is not installed on the server.</div>{% endif %}
+<form class="card row" action="{{ url_for('exam.admin_upload') }}" method="post" enctype="multipart/form-data">
+  <label>Exam title<input name="title" placeholder="e.g. Physics Unit Test 1" required style="min-width:240px"></label>
+  <label>Duration (minutes)<input type="number" name="duration" value="60" min="1" max="600" style="width:120px"></label>
+  <label>Question paper (.docx)<input type="file" name="file" accept=".docx" required></label>
+  <button class="primary">Upload &amp; parse</button>
+</form>
+<div class="card"><h2>Your exams</h2>
+{% if exams %}<table><tr><th>Title</th><th>Code</th><th>Status</th><th>Qs</th><th>Submitted</th><th></th></tr>
+{% for e in exams %}<tr>
+  <td><a href="{{ url_for('exam.admin_exam', exam_id=e.id) }}">{{ e.title }}</a><div class="muted">{{ e.duration }} min &middot; {{ e.total_marks|round(1) }} marks</div></td>
+  <td><code>{{ e.code }}</code></td>
+  <td>{% if e.published %}<span class="chip" style="color:var(--ok)">Published</span>{% else %}<span class="chip">Draft</span>{% endif %}</td>
+  <td>{{ e.questions|length }}</td><td>{{ counts[e.id] }}</td>
+  <td><a href="{{ url_for('exam.admin_results', exam_id=e.id) }}">Results</a></td></tr>{% endfor %}</table>
+{% else %}<p class="muted">No exams yet. Upload one above.</p>{% endif %}</div>
+{% endblock %}

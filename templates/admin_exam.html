@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.title }}{% endblock %}
+{% block head %}{% include "_mathjax.html" %}{% endblock %}
+{% block nav %}<nav><a href="{{ url_for('exam.admin') }}">&larr; Dashboard</a><span class="sp"></span><a href="{{ url_for('exam.admin_results', exam_id=exam.id) }}">Results</a></nav>{% endblock %}
+{% block content %}
+<form method="post" action="{{ url_for('exam.admin_save', exam_id=exam.id) }}">
+<h1>{{ exam.title }}</h1>
+<p class="sub">Check each question's type, answer key and marks. Open "Preview" to see how it looks to students.</p>
+
+<div class="card row">
+  <label>Title<input name="title" value="{{ exam.title }}" style="min-width:260px"></label>
+  <label>Duration (min)<input type="number" name="duration" value="{{ exam.duration }}" min="1" max="600" style="width:110px"></label>
+  <label style="flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:14px"><input type="checkbox" name="show_answers" {{ 'checked' if exam.show_answers }}> Show answers to students after submit</label>
+</div>
+
+{% if exam.published %}<div class="flash ok">Published &middot; code <b>{{ exam.code }}</b> &middot; link: <a href="{{ join_url }}">{{ join_url }}</a></div>{% endif %}
+
+<div class="card"><h2>{{ exam.questions|length }} questions &middot; {{ exam.total_marks|round(1) }} marks</h2>
+<table>
+<tr><th>#</th><th>Question</th><th>Type</th><th>Answer</th><th>Marks</th><th>&minus;ve</th><th>Del</th></tr>
+{% for q in exam.questions %}
+<tr>
+  <td>{{ q.position }}</td>
+  <td style="max-width:420px"><div class="muted" style="font-size:12px">{{ q.section }}</div>
+    <details><summary>Preview{% if q.context %} (with passage){% endif %}</summary><div class="qhtml">{% if q.context %}<div class="card" style="margin:8px 0">{{ q.context|safe }}</div>{% endif %}{{ q.html|safe }}</div></details></td>
+  <td><select name="type_{{ q.id }}">{% for k, v in TYPE_LABELS.items() %}<option value="{{ k }}" {{ 'selected' if q.qtype == k }}>{{ v }}</option>{% endfor %}</select></td>
+  <td><input name="ans_{{ q.id }}" value="{{ q.answer }}" size="8" placeholder="A,C or 9.3" style="{{ 'border-color:var(--err)' if not q.answer }}">
+      <div class="muted" style="font-size:11px">{% if q.qtype != 'integer' %}letters A-D{% if q.label_style == 'num' %} (shown as 1-4){% endif %}{% else %}number{% endif %}</div></td>
+  <td><input name="marks_{{ q.id }}" value="{{ q.marks|round(2) }}" size="3" style="width:64px"></td>
+  <td><input name="neg_{{ q.id }}" value="{{ q.negative|round(2) }}" size="3" style="width:64px"></td>
+  <td><input type="checkbox" name="del_{{ q.id }}"></td>
+</tr>{% endfor %}
+</table></div>
+
+<div class="row">
+  <button name="action" value="save" class="primary">Save changes</button>
+  {% if exam.published %}<button name="action" value="unpublish">Unpublish</button>
+  {% else %}<button name="action" value="publish" style="border-color:var(--ok);color:var(--ok)">Save &amp; publish</button>{% endif %}
+</div>
+</form>
+<form method="post" action="{{ url_for('exam.admin_delete', exam_id=exam.id) }}" style="margin-top:24px" onsubmit="return confirm('Delete this exam and all attempts?')">
+  <button class="danger">Delete exam</button></form>
+{% endblock %}

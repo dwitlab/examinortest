@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Examiner login{% endblock %}
+{% block content %}
+<h1>Examiner login</h1><p class="sub">Password is the EXAMINER_PASSWORD environment variable, or the generated one in <code>instance/admin_password</code>.</p>
+<form method="post" class="card row"><label>Password<input type="password" name="password" autofocus required></label><button class="primary">Log in</button></form>
+{% endblock %}

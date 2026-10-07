@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Online Exams{% endblock %}
+{% block content %}
+<h1>Online Exams</h1>
+<p class="sub">Upload a question paper, publish it, and let students take it online.</p>
+<div class="grid">
+  <div class="card"><h2>I'm a student</h2>
+    <form action="{{ url_for('exam.join_redirect') }}" method="get" class="row">
+      <label>Exam code<input name="code" placeholder="e.g. 3F9A1C" required maxlength="8" style="text-transform:uppercase"></label>
+      <button class="primary">Continue</button>
+    </form></div>
+  <div class="card"><h2>I'm an examiner</h2><p class="muted">Upload a .docx paper, review it, publish, and see results.</p>
+    <a class="btn primary" href="{{ url_for('exam.admin') }}">Examiner login</a></div>
+  <div class="card"><h2>DOCX &rarr; LaTeX</h2><p class="muted">The converter tool.</p>
+    <a class="btn" href="/converter">Open converter</a></div>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.title }}{% endblock %}
+{% block head %}{% include "_mathjax.html" %}
+<style>
+main{max-width:1180px}
+.top{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.top h1{font-size:19px;margin:0;flex:1;min-width:200px}
+#timer{font:600 20px ui-monospace,Menlo,Consolas,monospace;padding:4px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+#timer.low{color:var(--err);border-color:var(--err)}
+.layout{display:grid;grid-template-columns:1fr 250px;gap:16px;align-items:start}
+@media(max-width:820px){.layout{grid-template-columns:1fr}.pal{order:-1}}
+.pal{position:sticky;top:12px}
+.pgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.pgrid button{padding:6px 0;font-size:13px}
+.pgrid button.ans{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pgrid button.cur{outline:2px solid var(--text);outline-offset:1px}
+.opts{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
+.opt{flex-direction:row;align-items:center;gap:8px;padding:8px 18px;border:1px solid var(--line);border-radius:99px;cursor:pointer;color:var(--text);font-size:15px;background:var(--card)}
+.opt:has(input:checked){background:var(--accent);border-color:var(--accent);color:#fff}
+.opt input{accent-color:#fff}
+.qmeta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.nav{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+#status{font-size:12px;color:var(--muted)}
+</style>{% endblock %}
+{% block content %}
+<div class="top"><h1>{{ exam.title }}</h1><span id="status"></span><span id="timer">--:--</span><button class="primary" id="submitBtn">Submit exam</button></div>
+<div class="layout">
+<div>
+{% for q in exam.questions %}{% set val = att.answers.get(q.id|string, '') %}
+<section class="card q" data-qid="{{ q.id }}" data-type="{{ q.qtype }}" {{ 'hidden' if not loop.first }}>
+  <div class="qmeta"><b>Question {{ loop.index }} of {{ exam.questions|length }}</b>
+    <span class="chip">{{ TYPE_LABELS[q.qtype] }}</span>{% if q.context and q.orig_no %}<span class="chip" title="Number printed in the original paper, as referred to in the passage">Passage ref: Q{{ q.orig_no }}</span>{% endif %}<span class="chip" style="color:var(--ok)">+{{ q.marks|round(2) }}</span>{% if q.negative %}<span class="chip" style="color:var(--err)">&minus;{{ q.negative|round(2) }}</span>{% endif %}</div>
+  {% if q.context %}<div class="card qhtml" style="background:var(--code)">{{ q.context|safe }}</div>{% endif %}
+  <div class="qhtml">{{ q.html|safe }}</div>
+  <div class="opts">
+  {% if q.qtype == 'integer' %}
+    <label>Your answer (number)<input class="ansbox" type="text" inputmode="decimal" autocomplete="off" value="{{ val }}" style="width:200px"></label>
+  {% else %}
+    {% for L in LETTERS %}<label class="opt"><input class="ansbox" type="{{ 'checkbox' if q.qtype == 'multiple' else 'radio' }}" name="a{{ q.id }}" value="{{ L }}" {{ 'checked' if L in val.split(',') }}> {{ q.label(L) }}</label>{% endfor %}
+  {% endif %}
+  </div>
+  {% if q.qtype == 'multiple' %}<div class="muted" style="font-size:12px">One or more options may be correct.</div>{% endif %}
+  <div class="nav"><button class="prev">&larr; Previous</button><button class="next">Next &rarr;</button><button class="clear">Clear answer</button></div>
+</section>{% endfor %}
+</div>
+<aside class="card pal"><h2>Questions</h2><div class="pgrid" id="pgrid"></div>
+  <p class="muted" style="font-size:12px;margin:12px 0 0"><span class="chip" style="background:var(--accent);color:#fff;border-color:var(--accent)">&nbsp;</span> answered &nbsp; <span class="chip">&nbsp;</span> not answered</p></aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const TOKEN = "{{ att.token }}";
+const end = Date.now() + {{ att.remaining }} * 1000;
+const qs = [...document.querySelectorAll('.q')];
+const pg = document.getElementById('pgrid');
+const typeset = new Set(); let cur = 0, submitting = false; const pending = new Set();
+
+function value(q){
+  const t = q.dataset.type;
+  if (t === 'integer') return q.querySelector('.ansbox').value.trim();
+  return [...q.querySelectorAll('.ansbox:checked')].map(x => x.value).sort().join(',');
+}
+function paint(){
+  [...pg.children].forEach((b,i) => { b.classList.toggle('ans', !!value(qs[i])); b.classList.toggle('cur', i === cur); });
+}
+function show(i){
+  cur = Math.max(0, Math.min(qs.length-1, i));
+  qs.forEach((q,j) => q.hidden = j !== cur);
+  if (!typeset.has(cur)) { typeset.add(cur); tex(qs[cur]); }
+  paint(); window.scrollTo({top:0});
+}
+function tex(el){ if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([el]); else setTimeout(() => tex(el), 300); }
+
+qs.forEach((q,i) => {
+  const b = document.createElement('button'); b.textContent = i+1; b.onclick = () => show(i); pg.appendChild(b);
+  q.querySelector('.prev').onclick = () => show(i-1);
+  q.querySelector('.next').onclick = () => show(i+1);
+  q.querySelector('.clear').onclick = () => {
+    q.querySelectorAll('.ansbox').forEach(x => x.type === 'text' ? x.value = '' : x.checked = false); save(q);
+  };
+  let timer;
+  q.querySelectorAll('.ansbox').forEach(x => x.addEventListener(x.type === 'text' ? 'input' : 'change', () => {
+    paint(); clearTimeout(timer); timer = setTimeout(() => save(q), x.type === 'text' ? 500 : 0);
+  }));
+});
+
+function save(q){
+  const st = document.getElementById('status'); st.textContent = 'Saving...';
+  const p = fetch(`/api/attempt/${TOKEN}/save`, {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({qid: q.dataset.qid, value: value(q)})})
+    .then(r => { if (r.status === 409) { finish(true); } else if (!r.ok) throw 0; st.textContent = 'Saved'; })
+    .catch(() => st.textContent = 'Not saved - check your connection')
+    .finally(() => pending.delete(p));
+  pending.add(p); return p;
+}
+async function finish(auto){
+  if (submitting) return; submitting = true;
+  await Promise.allSettled([...pending]);
+  const r = await fetch(`/api/attempt/${TOKEN}/submit`, {method:'POST'});
+  window.location = (await r.json()).redirect;
+}
+document.getElementById('submitBtn').onclick = () => {
+  const n = qs.filter(q => value(q)).length;
+  if (confirm(`Submit now? You have answered ${n} of ${qs.length} questions.`)) finish(false);
+};
+const t = document.getElementById('timer');
+function tick(){
+  const s = Math.max(0, Math.round((end - Date.now()) / 1000));
+  const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  t.textContent = (h ? h + ':' : '') + String(m).padStart(2,'0') + ':' + String(x).padStart(2,'0');
+  t.classList.toggle('low', s <= 300);
+  if (s <= 0) { clearInterval(iv); finish(true); }
+}
+const iv = setInterval(tick, 500); tick(); show(0);
+</script>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Results - {{ exam.title }}{% endblock %}
+{% block nav %}<nav><a href="{{ url_for('exam.admin_exam', exam_id=exam.id) }}">&larr; {{ exam.title }}</a><span class="sp"></span><a href="{{ url_for('exam.admin_results_csv', exam_id=exam.id) }}">Download CSV</a></nav>{% endblock %}
+{% block content %}
+<h1>Results</h1><p class="sub">{{ attempts|length }} submitted{% if pending %} &middot; {{ pending }} in progress{% endif %} &middot; out of {{ exam.total_marks|round(1) }}</p>
+<div class="card">
+{% if attempts %}<table><tr><th>#</th><th>Name</th><th>Roll</th><th>Score</th><th>%</th><th>Time taken</th></tr>
+{% for a in attempts %}<tr><td>{{ loop.index }}</td><td>{{ a.name }}</td><td>{{ a.roll }}</td><td><b>{{ a.score|round(2) }}</b> / {{ a.total|round(1) }}</td>
+<td>{{ ((a.score / a.total * 100) if a.total else 0)|round(1) }}%</td><td>{{ ((a.submitted - a.started).total_seconds() / 60)|round(1) }} min</td></tr>{% endfor %}</table>
+{% else %}<p class="muted">No submissions yet.</p>{% endif %}</div>
+{% endblock %}

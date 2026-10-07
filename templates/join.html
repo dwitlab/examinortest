@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.title }}{% endblock %}
+{% block content %}
+<h1>{{ exam.title }}</h1>
+<p class="sub">{{ exam.questions|length }} questions &middot; {{ exam.total_marks|round(1) }} marks &middot; {{ exam.duration }} minutes</p>
+<form class="card" method="post" action="{{ url_for('exam.start', code=exam.code) }}">
+  <div class="row">
+    <label>Full name<input name="name" required maxlength="120" autofocus></label>
+    <label>Roll number<input name="roll" required maxlength="60"></label>
+    <button class="primary">Start exam</button>
+  </div>
+  <p class="muted" style="margin:14px 0 0;font-size:13px">The timer starts as soon as you click Start and keeps running even if you close the page. If you come back with the same roll number you will resume where you left off. Answers are saved automatically.</p>
+</form>
+{% endblock %}
